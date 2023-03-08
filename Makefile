@@ -52,7 +52,7 @@ ${PIP_REQ}: ${SETUP_PY} ${ENV_DIR}/bin/pip-compile
 	${ENV_CMD}/pip-compile ${PIP_COMPILE_OPTIONS} -o ${PIP_REQ} ${SETUP_PY}
 
 clean:
-	rm -rfv __pycache__
+	find ${PWD} -depth -type d -maxdepth 1 \( -name __pycache__ -o -name "*.egg-info" \) -exec rm -rfv {} +
 	find src -depth -type d \( -name __pycache__ -o -name "*.egg-info" \) -exec rm -rfv {} +
 
 realclean: clean
