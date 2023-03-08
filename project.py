@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-## project.py for spyder_sandbox
+## project.py for pylaborate.spydy.qt5
 ##
 ## Usage
 ## - used for general shell command tooling via the project Makefile

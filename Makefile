@@ -1,4 +1,4 @@
-## Spyder Sandbox Makefile (bmake)
+## Makefile for pylaborate.spydy.qt5
 
 ENV_DIR?=	env
 ENV_ACTIVATE?=	${ENV_DIR}/bin/activate
@@ -8,11 +8,11 @@ HOST_PYTHON?=	python3
 PROJECT_PY?=	project.py
 SETUP_PY?=	setup.py
 PIP_REQ?=	requirements.txt
-ENV_PROMPT?=	sandbox.spyder
+ENV_PROMPT?=	spydy.qt5
 
 ## tool macros
 ENV_CMD?=	. ${ENV_ACTIVATE}; ${ENV_DIR}/bin
-PROJECT_PYTHON?=	${ENV_CMD}/python3
+PROJECT_PYTHON?=${ENV_CMD}/python3
 ENV_PIP?=	${ENV_CMD}/pip
 
 ## options for invoking pip
@@ -22,7 +22,7 @@ PIP_COMPILE_OPTIONS?=	--resolver=backtracking -v --extra dev --pip-args '${PIP_O
 ## options for invoking pip-sync [piptools]
 PIP_SYNC_OPTIONS?=	-v --ask  --pip-args '${PIP_OPTIONS}'
 
-.PHONY=			all env update sync devinstall
+.PHONY=			all env update sync devinstall clean realclean
 
 all: env update
 
@@ -51,4 +51,9 @@ ${ENV_DIR}/bin/doit: ${ENV_CFG}
 ${PIP_REQ}: ${SETUP_PY} ${ENV_DIR}/bin/pip-compile
 	${ENV_CMD}/pip-compile ${PIP_COMPILE_OPTIONS} -o ${PIP_REQ} ${SETUP_PY}
 
+clean:
+	rm -rfv __pycache__
+	find src -depth -type d \( -name __pycache__ -o -name "*.egg-info" \) -exec rm -rfv {} +
 
+realclean: clean
+	rm -rfv requirements.txt ${ENV_DIR} 

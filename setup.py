@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# setup.py - dynamic project configuration for spyder_sandbox
+# setup.py - dynamic project configuration for pylaborate.spydy.qt5
 #
 # see also: ./project.py, ./Makefile
 #
@@ -47,6 +47,6 @@ if __name__ == "__main__":
         classifiers = read_classifiers(config),
         install_requires = read_deps(config),
         license_files = ("COPYING",),
-        packages = ['spyder_sandbox'],
+        packages = ['pylaborate.spydy.qt5'],
         package_dir={'': 'src'}
     )
