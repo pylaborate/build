@@ -10,10 +10,13 @@
 ## - For purposes of project boostrapping, this code must use classes
 ##   and methods only from stdlib
 
-import os, sys
+import os, shlex, sys
+from tempfile import TemporaryDirectory
 from configparser import ConfigParser
 from argparse import ArgumentParser, Namespace
 from typing import Any, Union
+from venv import main as venvmain
+from subprocess import Popen
 
 
 def args_after(selector: Union[str, callable], args = sys.argv) -> list[str]:
@@ -72,26 +75,118 @@ def notify(fmt: str, *args: list[Any]):
     print("#-- " + fmt % args, file = sys.stderr)
 
 
+def with_main(ns, sub_main, args, failmsg = "Main call failed: %s"):
+    rc = 1
+    orig_argv = sys.argv
+    try:
+        sys.argv = [ns.__this__, *args]
+        sub_main()
+        rc = 0
+    except Exception as e:
+        notify(failmsg, e)
+        sys.exit(rc)
+    finally:
+        sys.argv = orig_argv
+    return rc
+
+
 def ensure_env(ns: Namespace):
-    prompt = ns.prompt
+    ## ensure that a virtualenv virtual environment exists at a path provided
+    ## under the configuration namespace 'ns'
+    ##
+    ## For purposes of project bootstrapping, this workflow proceeds as follows:
+    ## 1) Creates a bootstrap pip environment using venv in this Python process
+    ## 2) Installs the virtualenv package with pip, in that environment
+    ## 3) Creates the primary virtual environment using virtualenv from within
+    ##    the bootstrap pip environment
+    ##
+    ## By default, the primary virtual environment would use the same Python
+    ## implementation as that running this project.py script. This behavior
+    ## may be modified by providing --python "<path>" within the
+    ## --virtualenv-opts option to this project.py script.
+    ##
+    ## If a virtual environment exists at the provided envdir:
+    ## - Exits non-zero if it does not appear to comprise a virtualenv virtual
+    ##   environment, i.e if no bin/activate_this.py exists within envdir
+    ## - Else, exits zero for the existing environment
+    ##
+    ## On success, a virtualenv virtual environment will have been installed
+    ## at the envdir provided in 'ns'.
     envdir = ns.envdir
     env_cfg = os.path.join(envdir, "pyvenv.cfg")
     if os.path.exists(env_cfg):
-        ## not an error, process will exit 0, thus not breaking any Makefile
-        ## calling this project.py
-        notify("Virtual environment already created: %s", envdir)
+        py_activate = os.path.join(envdir, "bin", "activate_this.py")
+        if os.path.exists(py_activate):
+            notify("Virtual environment already created: %s", envdir)
+            sys.exit(0)
+        else:
+            notify("Virtual environment exists but bin/activate_this.py not found: %s",
+                   envdir)
+            sys.exit(7)
     else:
-        notify("Creating virtual environment %r in %s", prompt, envdir)
-        import venv
-        args = ['--prompt', prompt, '--upgrade-deps', envdir]
-        venv.main(args)
-
+        with TemporaryDirectory(prefix = ns.__this__ + ".", dir = ns.tmpdir) as tmp:
+            venv_args = ['--upgrade-deps', tmp]
+            notify("Creating bootstrap venv environment %s", tmp)
+            with_main(
+                ns, venvmain, venv_args,
+                "bootstrap venv creation failed: %s"
+            )
+            notify("Installing virtualenv in bootstrap environment %s", tmp)
+            pip_opts = shlex.split(ns.pip_opts)
+            pip_cmd = os.path.join(tmp, "bin", "pip")
+            pip_install_argv = [pip_cmd, "install", * pip_opts, "virtualenv"]
+            rc = 11
+            try:
+                proc = Popen(pip_install_argv,
+                             stdin = sys.stdin, stdout = sys.stdout,
+                             stderr = sys.stderr)
+                proc.wait()
+                rc = proc.returncode
+            except Exception as e:
+                notify("Failed to create primary virtual environment: %s", e)
+                sys.exit(23)
+            if (rc != 0):
+                notify("Failed to install virtualenv, pip install exited %d", rc)
+                sys.exit(rc)
+            ## now run vitualenv to create the actual virtualenv
+            envdir = ns.envdir
+            notify("Creating primary virtual environment in %s", envdir)
+            virtualenv_cmd = os.path.join(tmp, "bin", "virtualenv")
+            virtualenv_opts = shlex.split(ns.virtualenv_opts)
+            virtualenv_argv = [virtualenv_cmd, *virtualenv_opts, envdir]
+            try:
+                ## final subprocess call - this could be managed via exec
+                proc = Popen(virtualenv_argv,
+                             stdin = sys.stdin, stdout = sys.stdout,
+                             stderr = sys.stderr)
+                proc.wait()
+                rc = proc.returncode
+                if (rc != 0):
+                    notify("virtualenv command exited non-zero: %d", rc)
+                else:
+                    notify("Created virtualenv environment in %s", envdir)
+                notify("Removing bootstrap venv environment %s", tmp)
+                sys.exit(rc)
+            except Exception as e:
+                notify("Failed to create primary virtual environment: %s", e)
+                sys.exit(31)
 
 if __name__ == "__main__":
     this = os.path.basename(__file__)
     mainparser = ArgumentParser(prog = this)
     show_help = lambda ns: mainparser.print_help(file = sys.stdout)
-    mainparser.set_defaults(func = show_help)
+    tmpdir = os.environ.get("TMPDIR", None)
+    mainparser.set_defaults(
+        __this__ = this,
+        tmpdir = tmpdir,
+        func = show_help,
+    )
+    mainparser.add_argument(
+        "--tmpdir", "-t",
+        help=f'''Temporary directory for commands.
+        If None, use system default. default: {tmpdir!r}''',
+        default = tmpdir
+    )
     subparser = mainparser.add_subparsers(
         title = "commands",
         help = "Single action to run (see command help)",
@@ -105,22 +200,25 @@ if __name__ == "__main__":
     mkenv_parser.set_defaults(func = ensure_env)
     envdir_dflt = os.path.join(os.getcwd(), "env")
     mkenv_parser.add_argument(
-        "--envdir", '-e',
+        "--envdir", "-e",
         help=f'''Directory path for virtual environment.
         default: {envdir_dflt}''',
         default = envdir_dflt
     )
-    prompt_dflt = "env"
     mkenv_parser.add_argument(
-        "--prompt", "-p",
-        help=f'''Virtual Environment prompt string.
-        default: {prompt_dflt!r}''',
-        default = prompt_dflt
+        "--pip-opts", "-i",
+        help="Options to pass to pip install",
+        default=''
+    )
+    mkenv_parser.add_argument(
+        "--virtualenv-opts", "-o",
+        help="Options to pass to virutalenv",
+        default=''
     )
 
     ## the following section should be moved to a modular build lib
     ## then available post-boostrap with a 'build' command passing all
-    ## other args to a build.py script
+    ## other args to a build.py script, or using pavement.py
     conf = ConfigParser()
     conf.read("project.ini")
     bld_parser = subparser.add_parser(
@@ -216,4 +314,13 @@ if __name__ == "__main__":
     ## run with argparser
     cmd_args = args_after(lambda a: os.path.basename(a) == this)
     ns = mainparser.parse_args(cmd_args)
+    tmpdir = ns.tmpdir
+    if tmpdir is not None:
+        orig_umask = os.umask(0o077)
+        try:
+            if not os.path.exists(tmpdir):
+                os.makedirs(tmpdir)
+        finally:
+            os.umask(orig_umask)
+        os.environ["TMPDIR"] = tmpdir
     ns.func(ns)

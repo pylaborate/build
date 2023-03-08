@@ -21,6 +21,8 @@ PIP_OPTIONS?=		--no-build-isolation -v --require-virtualenv --disable-pip-versio
 PIP_COMPILE_OPTIONS?=	--resolver=backtracking -v --extra dev --pip-args '${PIP_OPTIONS}'
 ## options for invoking pip-sync [piptools]
 PIP_SYNC_OPTIONS?=	-v --ask  --pip-args '${PIP_OPTIONS}'
+## options for creating the bootstrap virtualenv
+VIRTUALENV_OPTIONS=	--prompt "${ENV_PROMPT}" --no-periodic-update
 
 .PHONY=			all env update sync devinstall clean realclean
 
@@ -35,12 +37,12 @@ sync: update ${ENV_DIR}/bin/pip-compile
 	${ENV_CMD}/pip-sync ${PIP_SYNC_OPTIONS}
 
 ## pip-sync will uninstall any earlier version after prompt,
-## then pip-install will build and install an editable wheel
+## then pip-install will build and install an editable module
 devinstall: update sync
 	${ENV_PIP} install -e .
 
 ${ENV_CFG}: ${PROJECT_PY}
-	${HOST_PYTHON} ${PROJECT_PY} ensure_env --prompt ${ENV_PROMPT} --envdir ${ENV_DIR}
+	${HOST_PYTHON} ${PROJECT_PY} ensure_env --pip-opts '${PIP_OPTIONS}' --virtualenv-opts '${VIRTUALENV_OPTIONS}' --envdir '${ENV_DIR}'
 
 ${ENV_DIR}/bin/pip-compile: ${ENV_CFG}
 	${ENV_PIP} install ${PIP_OPTIONS} pip-tools
