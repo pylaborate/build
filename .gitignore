@@ -1,3 +1,10 @@
+/attic
+/env
+/log
+/requirements.txt
+.spyproject/
+/buildsrc
+/distcache
 *~
 .#*
 *#
@@ -7,10 +14,8 @@
 *.orig
 *.rej
 .doit.db.db
-/env
 *.tar.gz
 *.egg-info
 __pycache__
 ## requirements.txt will vary depending on whether PyQt5 is being built
-/requirements.txt
 

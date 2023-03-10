@@ -7,6 +7,7 @@ ENV_CFG=	${ENV_DIR}/pyvenv.cfg
 HOST_PYTHON?=	python3
 PROJECT_PY?=	project.py
 SETUP_PY?=	setup.py
+PROJECT_INI=	project.ini
 PIP_REQ?=	requirements.txt
 ENV_PROMPT?=	spydy.qt5
 
@@ -47,10 +48,7 @@ ${ENV_CFG}: ${PROJECT_PY}
 ${ENV_DIR}/bin/pip-compile: ${ENV_CFG}
 	${ENV_PIP} install ${PIP_OPTIONS} pip-tools
 
-${ENV_DIR}/bin/doit: ${ENV_CFG}
-	${ENV_PIP} install ${PIP_OPTIONS} doit
-
-${PIP_REQ}: ${SETUP_PY} ${ENV_DIR}/bin/pip-compile
+${PIP_REQ}: ${SETUP_PY} ${PROJECT_INI} ${ENV_DIR}/bin/pip-compile
 	${ENV_CMD}/pip-compile ${PIP_COMPILE_OPTIONS} -o ${PIP_REQ} ${SETUP_PY}
 
 clean:

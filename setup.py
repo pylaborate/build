@@ -6,14 +6,14 @@
 #
 
 from setuptools import setup
-import configparser, os, platform, re
+import configparser, os, platform
 
 
 def build_pyqt5_p(config):
     build_env = os.environ.get('BUILD_PYQT5', None)
     if build_env is not None:
         return False if len(build_env) == 0 else True
-    elif re.match(r'.*[Bb][Ss][Dd].*', platform.system()) is not None:
+    elif 'bsd' in platform.system():
         return True
     else:
         return False

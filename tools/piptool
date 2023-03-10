@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+## piptool - a general utility for source-based applications
+##
+## :: implemented commands
+##
+## srcinfo:
+##     print the name, version, sha256 file checksum, and file URL
+##     for available sdist archives in a range of versions for a
+##     named package
+##
+
+import os, sys
+from argparse import Action, ArgumentParser, Namespace
+from pathlib import Path
+from typing import Any, Optional, Union
+
+def find_project_root(start_dir: Union[str, Path] = os.getcwd()) -> Optional[Path]:
+    ## recurse upwards across filesystems starting at start_dir,
+    ## to determine the location of a project root directory
+    ##
+    ## returns user's home directory, if no project directory is found
+    abs_dir = Path(start_dir).absolute()
+    for resource in ["pyproject.toml", "setup.py", ".git", ".svn", ".hg", ".bzr"]:
+        if os.path.exists(Path(abs_dir, resource)):
+            return abs_dir
+    next_dir = abs_dir.parent
+    if abs_dir.samefile(next_dir):
+        return Path.home()
+    else:
+        return find_project_root(next_dir)
+
+def activate_venv(envdir: Union[str, Path]):
+    ## Ensure the virtual environment is avaialble to this Python
+    activate_py = os.path.abspath(os.path.join(envdir, "bin", "activate_this.py"))
+    if os.path.exists(activate_py):
+        return exec(open(activate_py).read(), {'__file__': activate_py})
+
+if os.environ.get("VIRTUAL_ENV", None) is None:
+    envdir = os.environ.get("ENV_DIR", None)
+    if envdir is None:
+        basedir = find_project_root(os.path.dirname(__file__))
+        if basedir is not None:
+            envdir = os.path.join(basedir, "env")
+    if envdir is not None:
+        activate_venv(envdir)
+
+
+import requests
+from pylaborate.build import Program, args_after
+import pylaborate.build.pipinfo as pi
+
+class PipTool(Program):
+
+    @classmethod
+    def commands(cls):
+        return ("srcinfo",)
+
+    def set_srcinfo_opts(self, parser: ArgumentParser, subparser: Action):
+        p = self.add_cmd("srcinfo", subparser)
+        p.add_argument("name", help="package distribution name")
+        p.add_argument("--version", "-n",
+                       help="package version. default: latest released version",
+                       default = "latest")
+        return p
+
+    @staticmethod
+    def failed(code: int, fmt: str, *args: list[Any]):
+        print(fmt % args, file = sys.stderr)
+        sys.exit(code)
+
+    @staticmethod
+    def print_srcinfo(name: str, version: str, srcinfo: dict):
+        sha256 = srcinfo['digests']['sha256']
+        origin = srcinfo['url']
+        print("%s %s sha256 %s %s" % (name, version, sha256, origin))
+
+    def run_srcinfo(self, ns: Namespace):
+        ## run the 'srcinfo' command for this Program
+        pipname = ns.name
+        try:
+            data = pi.pip_data(pipname)
+        except (requests.exceptions.HTTPError,
+                requests.exception.ConnectionError) as error:
+            self.failed(7, "Failed to retrieve information for %s: %s",
+                        pipname, error)
+        version = ns.version
+        if version == "all":
+            for v in data.versions:
+                srcinfo = data.release_source_data(v)
+                if srcinfo is not None:
+                    self.print_srcinfo(pipname, v, srcinfo)
+        else:
+            if version == "latest":
+                version = data.latest_version
+            try:
+                srcinfo = data.release_source_data(version)
+            except RuntimeError:
+                ## RuntimeError would be thrown from pipinfo
+                self.failed(15, "No version information avilable for %s version %s",
+                            pipname, version)
+            self.print_srcinfo(pipname, version, srcinfo)
+        sys.exit(0)
+
+if __name__ == "__main__":
+    t = PipTool()
+    filename = os.path.basename(__file__)
+    args = args_after(lambda a: os.path.basename(a) == filename)
+    t.run(args)
