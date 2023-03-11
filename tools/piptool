@@ -46,9 +46,8 @@ if os.environ.get("VIRTUAL_ENV", None) is None:
         activate_venv(envdir)
 
 
-import requests
-from pylaborate.build import Program, args_after
-import pylaborate.build.pipinfo as pi
+from requests.exceptions import HTTPError, ConnectionError
+from pylaborate.build import Program, pipinfo
 
 class PipTool(Program):
 
@@ -56,13 +55,13 @@ class PipTool(Program):
     def commands(cls):
         return ("srcinfo",)
 
-    def set_srcinfo_opts(self, parser: ArgumentParser, subparser: Action):
-        p = self.add_cmd("srcinfo", subparser)
-        p.add_argument("name", help="package distribution name")
-        p.add_argument("--version", "-n",
-                       help="package version. default: latest released version",
-                       default = "latest")
-        return p
+    def set_srcinfo_opts(self, parser: ArgumentParser, subparser: Action,
+                         root_parser: ArgumentParser):
+        parser.add_argument("name", help="package distribution name")
+        parser.add_argument("--version", "-n",
+                            ## FIXME improve on the lack of documentation for options here
+                            help="package version. default: latest released version",
+                            default = "latest")
 
     @staticmethod
     def failed(code: int, fmt: str, *args: list[Any]):
@@ -79,9 +78,10 @@ class PipTool(Program):
         ## run the 'srcinfo' command for this Program
         pipname = ns.name
         try:
-            data = pi.pip_data(pipname)
-        except (requests.exceptions.HTTPError,
-                requests.exception.ConnectionError) as error:
+            data = pipinfo.pip_data(pipname)
+        except (HTTPError, ConnectionError) as error:
+            ## HTTPError may be reached on case of "PI not found".
+            ## It shows up as an HTTP 404 error (FIXME needs an earlier search?)
             self.failed(7, "Failed to retrieve information for %s: %s",
                         pipname, error)
         version = ns.version
@@ -105,5 +105,4 @@ class PipTool(Program):
 if __name__ == "__main__":
     t = PipTool()
     filename = os.path.basename(__file__)
-    args = args_after(lambda a: os.path.basename(a) == filename)
-    t.run(args)
+    t.run(sys.argv[1:])

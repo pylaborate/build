@@ -1,7 +1,8 @@
 ## plaborate.do module definition
 
 from .program import Program
-from .tool import Tool, args_after
+from .tool import Tool
+## pipinfo may eventually be moved to a broader submodule
+from .pipinfo import JsonData, PipData, pipinfo
 
-__all__ = ["Program", "Tool", "args_after"]
-
+__all__ = ["Program", "Tool", "JsonData", "PipData", "pipinfo"]
