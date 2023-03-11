@@ -47,7 +47,7 @@ if os.environ.get("VIRTUAL_ENV", None) is None:
 
 
 from requests.exceptions import HTTPError, ConnectionError
-from pylaborate.build import Program, pipinfo
+from pylaborate.build import Program, pip_data
 
 class PipTool(Program):
 
@@ -78,7 +78,7 @@ class PipTool(Program):
         ## run the 'srcinfo' command for this Program
         pipname = ns.name
         try:
-            data = pipinfo.pip_data(pipname)
+            data = pip_data(pipname)
         except (HTTPError, ConnectionError) as error:
             ## HTTPError may be reached on case of "PI not found".
             ## It shows up as an HTTP 404 error (FIXME needs an earlier search?)

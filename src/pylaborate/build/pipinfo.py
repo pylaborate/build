@@ -15,7 +15,7 @@ class JsonData():
     '''utility class for transformation of JSON data into a Pythonic
     object
 
-See also: The `pip_data` function, in this module'''
+    See also: The `pip_data` function, in this module'''
 
     def __init__(self, src: dict = {}):
         ## defining new classes that may not be GC's may cause a memory leak
@@ -153,4 +153,3 @@ def pip_data(pkgname: str):
     j = r.json()
     return PipData(j)
 
-# __ALL__ = ['JsonData', 'PipData', 'pip_data']

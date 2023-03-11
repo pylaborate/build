@@ -77,5 +77,5 @@ class ProjectTool(Tool):
 
 
 if __name__ == "__main__":
-    t = ProjectTool(inifile = os.path.join(PROJECT_DIR, "project.ini"),
+    t = ProjectTool(inifile = os.path.join(PROJECT_DIR, "project.ini"))
     t.run(sys.argv[1:])

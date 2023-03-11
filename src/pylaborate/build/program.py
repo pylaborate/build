@@ -137,7 +137,7 @@ class Program:
         ## for any Program defining commands, if the Program is called
         ## without any commands, then print the help text to stdout
         cmds = self.commands()
-        if (cmds is not None) or (len(cmds) == 0):
+        if (cmds is None) or (len(cmds) == 0):
             ## set a default runner for a Program defining no commands
             parser.set_defaults(func = self.get_default_runner(None))
         elif not parser.get_default('func'):
@@ -162,10 +162,10 @@ class Program:
         return lambda ns: mtd(self, ns)
 
     def define_command_opts(self, cmd_name: str, cmd_args_parser: ArgumentParser,
-                           cmd_subparser: Action,
-                           root_parser: ArgumentParser):
+                            cmd_subparser: Action,
+                            root_parser: ArgumentParser):
         ## dispatching caller for define_command
-        setter = self.__class__.__dict__.get("set_" + cmd_name + "_opts", None)
+        setter = vars(self.__class__).get("set_" + cmd_name + "_opts", None)
         if setter is not None:
             setter(self, cmd_args_parser, cmd_subparser, root_parser)
             ## FIXME log for debug if no set_<cmd>_opts attr was defined
@@ -189,8 +189,7 @@ class Program:
         ##
         ## The function returned from here should accept a single arg,
         ## as the Namespace configured from parsed options for the command
-        dct = self.__class__.__dict__
-        mtd = dct.get("run_" + cmd_name, None)
+        mtd = vars(self.__class__).get("run_" + cmd_name, None)
         ##
         if mtd is None:
             ## the default runner function will dispatch to call
@@ -256,7 +255,7 @@ class Program:
     def setopts(self, parser: ArgumentParser):
         ## configure any command options and runner functions for this Program
         cmds = self.commands()
-        if (cmds is not None) and (len(cmds) 1= 0):
+        if (cmds is not None) and (len(cmds) != 0):
             subparser = parser.add_subparsers(**self.get_subparser_args())
             for cmd_name in cmds:
                 self.define_command(cmd_name, subparser, parser)
