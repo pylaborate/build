@@ -1,4 +1,4 @@
-## plaborate.do module definition
+## plaborate.build module definition
 
 from .program import Program
 from .tool import Tool
